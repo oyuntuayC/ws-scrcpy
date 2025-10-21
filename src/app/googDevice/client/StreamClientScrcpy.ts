@@ -37,6 +37,7 @@ type StartParams = {
     player?: BasePlayer;
     fitToScreen?: boolean;
     videoSettings?: VideoSettings;
+    showControls?: boolean;
 };
 
 const TAG = '[StreamClientScrcpy]';
@@ -48,7 +49,6 @@ export class StreamClientScrcpy
     public static ACTION = 'stream';
     private static players: Map<string, PlayerClass> = new Map<string, PlayerClass>();
 
-    private controlButtons?: HTMLElement;
     private deviceName = '';
     private clientId = -1;
     private clientsCount = -1;
@@ -141,8 +141,8 @@ export class StreamClientScrcpy
             this.streamReceiver = new StreamReceiverScrcpy(this.params);
         }
 
-        const { udid, player: playerName } = this.params;
-        this.startStream({ udid, player, playerName, fitToScreen, videoSettings });
+        const { udid, player: playerName, showControls } = this.params;
+        this.startStream({ udid, player, playerName, fitToScreen, videoSettings, showControls });
         this.setBodyClass('stream');
     }
 
@@ -152,12 +152,15 @@ export class StreamClientScrcpy
         if (action !== ACTION.STREAM_SCRCPY) {
             throw Error('Incorrect action');
         }
+        const controlsValue = params.get('controls');
+        const showControls = controlsValue === null ? undefined : Util.parseBoolean(params, 'controls');
         return {
             ...typedParams,
             action,
             player: Util.parseString(params, 'player', true),
             udid: Util.parseString(params, 'udid', true),
             ws: Util.parseString(params, 'ws', true),
+            showControls,
         };
     }
 
@@ -261,7 +264,7 @@ export class StreamClientScrcpy
         this.touchHandler = undefined;
     };
 
-    public startStream({ udid, player, playerName, videoSettings, fitToScreen }: StartParams): void {
+    public startStream({ udid, player, playerName, videoSettings, fitToScreen, showControls }: StartParams): void {
         if (!udid) {
             throw Error(`Invalid udid value: "${udid}"`);
         }
@@ -315,9 +318,10 @@ export class StreamClientScrcpy
         const googMoreBox = (this.moreBox = new GoogMoreBox(udid, player, this));
         const moreBox = googMoreBox.getHolderElement();
         googMoreBox.setOnStop(stop);
-        const googToolBox = GoogToolBox.createToolBox(udid, player, this, moreBox);
-        this.controlButtons = googToolBox.getHolderElement();
-        deviceView.appendChild(this.controlButtons);
+        if (showControls) {
+            const googToolBox = GoogToolBox.createToolBox(udid, player, this, moreBox);
+            deviceView.appendChild(googToolBox.getHolderElement());
+        }
         const video = document.createElement('div');
         video.className = 'video';
         deviceView.appendChild(video);
@@ -381,11 +385,11 @@ export class StreamClientScrcpy
     }
 
     public getMaxSize(): Size | undefined {
-        if (!this.controlButtons) {
+        const body = document.body;
+        if (!body) {
             return;
         }
-        const body = document.body;
-        const width = (body.clientWidth - this.controlButtons.clientWidth) & ~15;
+        const width = body.clientWidth & ~15;
         const height = body.clientHeight & ~15;
         return new Size(width, height);
     }
@@ -490,6 +494,7 @@ export class StreamClientScrcpy
             port,
             pathname,
             useProxy,
+            showControls: true,
         };
         const dialog = new ConfigureScrcpy(tracker, descriptor, options);
         dialog.on('closed', StreamClientScrcpy.onConfigureDialogClosed);

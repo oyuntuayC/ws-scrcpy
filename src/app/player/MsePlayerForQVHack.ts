@@ -6,10 +6,10 @@ import { DisplayInfo } from '../DisplayInfo';
 export class MsePlayerForQVHack extends MsePlayer {
     public static readonly preferredVideoSettings: VideoSettings = new VideoSettings({
         lockedVideoOrientation: -1,
-        bitrate: 8000000,
+        bitrate: 1048576,
         maxFps: 30,
         iFrameInterval: 10,
-        bounds: new Size(720, 720),
+        bounds: new Size(1920, 1080),
         sendFrameMeta: false,
     });
 

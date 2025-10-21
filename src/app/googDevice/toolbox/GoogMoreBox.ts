@@ -11,7 +11,7 @@ import { StreamClientScrcpy } from '../client/StreamClientScrcpy';
 const TAG = '[GoogMoreBox]';
 
 export class GoogMoreBox {
-    private static defaultSize = new Size(480, 480);
+    private static defaultSize = new Size(1920, 1080);
     private onStop?: () => void;
     private readonly holder: HTMLElement;
     private readonly input: HTMLTextAreaElement;
