@@ -16,6 +16,7 @@ export class BaseClient<P extends ParamsBase, TE extends EventMap> extends Typed
         if (!action) {
             throw TypeError('Invalid action');
         }
+        const password = Util.parseStringEnv(query.get('password'));
         return {
             action: action,
             useProxy: Util.parseBooleanEnv(query.get('useProxy')),
@@ -23,6 +24,7 @@ export class BaseClient<P extends ParamsBase, TE extends EventMap> extends Typed
             hostname: Util.parseStringEnv(query.get('hostname')),
             port: Util.parseIntEnv(query.get('port')),
             pathname: Util.parseStringEnv(query.get('pathname')),
+            password: password,
         };
     }
 

@@ -9,6 +9,7 @@ export interface HostItem {
     port: number;
     pathname?: string;
     useProxy?: boolean;
+    password?: string;
 }
 
 export interface HostsItem {
@@ -18,6 +19,7 @@ export interface HostsItem {
     port: number;
     pathname?: string;
     useProxy?: boolean;
+    password?: string;
 }
 
 export type ExtendedServerOption = https.ServerOptions & {
@@ -45,4 +47,5 @@ export interface Configuration {
     runGoogTracker?: boolean;
     announceGoogTracker?: boolean;
     remoteHostList?: HostsItem[];
+    googTrackerPassword?: string;
 }

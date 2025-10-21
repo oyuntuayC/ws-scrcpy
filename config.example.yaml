@@ -3,6 +3,8 @@
 # Device trackers
 ## track android devices (default: true, if was INCLUDE_GOOG enabled in build config)
 runGoogTracker: false
+# Optional password required to access the Android Device Tracker UI
+# googTrackerPassword: "your-password"
 ## track iOS devices (default: true, if was INCLUDE_APPL enabled in build config)
 runApplTracker: false;
 

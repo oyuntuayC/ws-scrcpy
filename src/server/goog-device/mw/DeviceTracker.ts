@@ -8,6 +8,7 @@ import { DeviceTrackerEvent } from '../../../types/DeviceTrackerEvent';
 import { DeviceTrackerEventList } from '../../../types/DeviceTrackerEventList';
 import { Multiplexer } from '../../../packages/multiplexer/Multiplexer';
 import { ChannelCode } from '../../../common/ChannelCode';
+import { Config } from '../../Config';
 
 export class DeviceTracker extends Mw {
     public static readonly TAG = 'DeviceTracker';
@@ -15,8 +16,11 @@ export class DeviceTracker extends Mw {
     private adt: ControlCenter = ControlCenter.getInstance();
     private readonly id: string;
 
-    public static processChannel(ws: Multiplexer, code: string): Mw | undefined {
+    public static processChannel(ws: Multiplexer, code: string, data?: ArrayBuffer): Mw | undefined {
         if (code !== ChannelCode.GTRC) {
+            return;
+        }
+        if (!this.isAuthorizedForChannel(ws, data)) {
             return;
         }
         return new DeviceTracker(ws);
@@ -24,6 +28,9 @@ export class DeviceTracker extends Mw {
 
     public static processRequest(ws: WS, params: RequestParameters): DeviceTracker | undefined {
         if (params.action !== ACTION.GOOG_DEVICE_LIST) {
+            return;
+        }
+        if (!this.isAuthorizedForRequest(ws, params)) {
             return;
         }
         return new DeviceTracker(ws);
@@ -86,5 +93,57 @@ export class DeviceTracker extends Mw {
     public release(): void {
         super.release();
         this.adt.off('device', this.sendDeviceMessage);
+    }
+
+    private static requiredPassword(): string | undefined {
+        return Config.getInstance().googTrackerPassword;
+    }
+
+    private static isAuthorizedForRequest(ws: WS, params: RequestParameters): boolean {
+        const password = this.requiredPassword();
+        if (!password) {
+            return true;
+        }
+        const queryPassword = params.url.searchParams.get('password');
+        if (queryPassword === password) {
+            return true;
+        }
+        const header = params.request.headers['authorization'];
+        const headerValue = Array.isArray(header) ? header[0] : header;
+        if (headerValue && this.matchesBasicAuth(headerValue, password)) {
+            return true;
+        }
+        ws.close(1008, 'Unauthorized');
+        return false;
+    }
+
+    private static isAuthorizedForChannel(ws: Multiplexer, data?: ArrayBuffer): boolean {
+        const password = this.requiredPassword();
+        if (!password) {
+            return true;
+        }
+        const provided = data ? Buffer.from(data).toString() : '';
+        if (provided === password) {
+            return true;
+        }
+        ws.close(1008, 'Unauthorized');
+        return false;
+    }
+
+    private static matchesBasicAuth(header: string, password: string): boolean {
+        const trimmed = header.trim();
+        if (!trimmed.toLowerCase().startsWith('basic ')) {
+            return false;
+        }
+        const base64 = trimmed.slice(6).trim();
+        try {
+            const decoded = Buffer.from(base64, 'base64').toString();
+            const separatorIndex = decoded.indexOf(':');
+            const candidate = separatorIndex >= 0 ? decoded.slice(separatorIndex + 1) : decoded;
+            return candidate === password;
+        } catch (error) {
+            console.error(`[${DeviceTracker.TAG}]`, 'Failed to parse basic auth header:', (error as Error).message);
+            return false;
+        }
     }
 }

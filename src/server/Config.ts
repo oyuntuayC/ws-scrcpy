@@ -32,6 +32,7 @@ export class Config {
                 port: DEFAULT_PORT,
             },
         ];
+        const envPassword = process.env[EnvName.GOOG_TRACKER_PASSWORD];
         const defaultConfig: Required<Configuration> = {
             runGoogTracker,
             runApplTracker,
@@ -39,8 +40,12 @@ export class Config {
             announceApplTracker,
             server,
             remoteHostList: [],
+            googTrackerPassword: envPassword || '',
         };
         const merged = Object.assign({}, defaultConfig, userConfig);
+        if (envPassword) {
+            merged.googTrackerPassword = envPassword;
+        }
         merged.server = merged.server.map((item) => this.parseServerItem(item));
         return merged;
     }
@@ -115,7 +120,7 @@ export class Config {
         }
         const hostList: HostItem[] = [];
         this.fullConfig.remoteHostList.forEach((item) => {
-            const { hostname, port, pathname, secure, useProxy } = item;
+            const { hostname, port, pathname, secure, useProxy, password } = item;
             if (Array.isArray(item.type)) {
                 item.type.forEach((type) => {
                     hostList.push({
@@ -124,11 +129,12 @@ export class Config {
                         pathname,
                         secure,
                         useProxy,
+                        password,
                         type,
                     });
                 });
             } else {
-                hostList.push({ hostname, port, pathname, secure, useProxy, type: item.type });
+                hostList.push({ hostname, port, pathname, secure, useProxy, password, type: item.type });
             }
         });
         return hostList;
@@ -152,5 +158,10 @@ export class Config {
 
     public get servers(): ServerItem[] {
         return this.fullConfig.server;
+    }
+
+    public get googTrackerPassword(): string | undefined {
+        const password = this.fullConfig.googTrackerPassword?.trim();
+        return password ? password : undefined;
     }
 }

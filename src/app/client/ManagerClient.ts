@@ -107,6 +107,9 @@ export abstract class ManagerClient<P extends ParamsBase, TE extends EventMap> e
                 directUrl.searchParams.set('action', action);
             }
         }
+        if (this.params.password) {
+            directUrl.searchParams.set('password', this.params.password);
+        }
         return directUrl;
     }
 

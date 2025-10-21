@@ -44,6 +44,9 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
     public static buildUrlForTracker(params: HostItem): URL {
         const wsUrl = this.buildUrl(params);
         wsUrl.searchParams.set('action', this.ACTION);
+        if (params.password) {
+            wsUrl.searchParams.set('password', params.password);
+        }
         return wsUrl;
     }
 
@@ -149,6 +152,10 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
 
     protected onSocketClose(event: CloseEvent): void {
         if (this.destroyed) {
+            return;
+        }
+        if (event.code === 1008) {
+            console.error(TAG, 'Connection rejected: unauthorized');
             return;
         }
         console.log(TAG, `Connection closed: ${event.reason}`);
@@ -271,6 +278,14 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
 
     protected getChannelInitData(): Buffer {
         const code = this.getChannelCode();
+        const password = this.params.password;
+        if (password) {
+            const passwordBuffer = Buffer.from(password, 'utf-8');
+            const buffer = Buffer.alloc(code.length + passwordBuffer.length);
+            buffer.write(code, 'ascii');
+            passwordBuffer.copy(buffer, code.length);
+            return buffer;
+        }
         const buffer = Buffer.alloc(code.length);
         buffer.write(code, 'ascii');
         return buffer;

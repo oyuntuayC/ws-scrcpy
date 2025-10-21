@@ -15,8 +15,11 @@ export class HostTracker extends Mw {
     private static localTrackers: Set<TrackerClass> = new Set<TrackerClass>();
     private static remoteHostItems?: HostItem[];
 
-    public static processChannel(ws: Multiplexer, code: string): Mw | undefined {
+    public static processChannel(ws: Multiplexer, code: string, data?: ArrayBuffer): Mw | undefined {
         if (code !== ChannelCode.HSTS) {
+            return;
+        }
+        if (!this.isAuthorized(ws, data)) {
             return;
         }
         return new HostTracker(ws);
@@ -58,5 +61,18 @@ export class HostTracker extends Mw {
 
     public release(): void {
         super.release();
+    }
+
+    private static isAuthorized(ws: Multiplexer, data?: ArrayBuffer): boolean {
+        const password = Config.getInstance().googTrackerPassword;
+        if (!password) {
+            return true;
+        }
+        const provided = data ? Buffer.from(data).toString() : '';
+        if (provided === password) {
+            return true;
+        }
+        ws.close(1008, 'Unauthorized');
+        return false;
     }
 }

@@ -32,8 +32,28 @@ export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
 
     private trackers: Array<GoogDeviceTracker | ApplDeviceTracker> = [];
 
+    private static extractPasswordFromLocation(): string | undefined {
+        try {
+            const hash = location.hash.replace(/^#!/, '');
+            if (!hash) {
+                return undefined;
+            }
+            const params = new URLSearchParams(hash);
+            const value = params.get('password');
+            return value && value.length ? value : undefined;
+        } catch (error) {
+            console.error(TAG, 'Failed to read password from location:', (error as Error).message);
+            return undefined;
+        }
+    }
+
     constructor() {
-        super({ action: ACTION.LIST_HOSTS });
+        const password = HostTracker.extractPasswordFromLocation();
+        const baseParams: ParamsBase = { action: ACTION.LIST_HOSTS };
+        if (password) {
+            baseParams.password = password;
+        }
+        super(baseParams);
         this.openNewConnection();
         if (this.ws) {
             this.ws.binaryType = 'arraybuffer';
@@ -89,12 +109,14 @@ export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
     }
 
     private startTracker(hostItem: HostItem): void {
-        switch (hostItem.type) {
+        const password = hostItem.password ?? this.params.password;
+        const trackerHostItem = password ? { ...hostItem, password } : hostItem;
+        switch (trackerHostItem.type) {
             case 'android':
-                this.trackers.push(GoogDeviceTracker.start(hostItem));
+                this.trackers.push(GoogDeviceTracker.start(trackerHostItem));
                 break;
             case 'ios':
-                this.trackers.push(ApplDeviceTracker.start(hostItem));
+                this.trackers.push(ApplDeviceTracker.start(trackerHostItem));
                 break;
             default:
                 console.warn(TAG, `Unsupported host type: "${hostItem.type}"`);
@@ -118,8 +140,17 @@ export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
     }
 
     protected getChannelInitData(): Buffer {
-        const buffer = Buffer.alloc(4);
-        buffer.write(ChannelCode.HSTS, 'ascii');
+        const code = ChannelCode.HSTS;
+        const password = this.params.password;
+        if (password) {
+            const passwordBuffer = Buffer.from(password, 'utf-8');
+            const buffer = Buffer.alloc(code.length + passwordBuffer.length);
+            buffer.write(code, 'ascii');
+            passwordBuffer.copy(buffer, code.length);
+            return buffer;
+        }
+        const buffer = Buffer.alloc(code.length);
+        buffer.write(code, 'ascii');
         return buffer;
     }
 }
